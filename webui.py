@@ -147,7 +147,9 @@ with shared.gradio_root:
                                            outputs=ip_ad_cols + ip_types + ip_stops + ip_weights, queue=False)
 
                     with gr.TabItem(label='Inpaint or Outpaint (beta)') as inpaint_tab:
-                        inpaint_input_image = grh.Image(label='Drag above image to here', source='upload', type='numpy', tool='sketch', height=500, brush_color="#FFFFFF", elem_id='inpaint_canvas')
+                        with gr.Row():
+                            inpaint_input_image = grh.Image(label='Drag above image to here', source='upload', type='numpy', tool='sketch', height=500, brush_color="#FFFFFF", elem_id='inpaint_canvas')
+                            inpaint_mask_image = grh.Image(label='Drag above image to here', source='upload', type='numpy', height=500)
                         gr.HTML('Outpaint Expansion (<a href="https://github.com/lllyasviel/Fooocus/discussions/414" target="_blank">\U0001F4D4 Document</a>):')
                         outpaint_selections = gr.CheckboxGroup(choices=['Left', 'Right', 'Top', 'Bottom'], value=[], label='Outpaint', show_label=False, container=False)
                         gr.HTML('* \"Inpaint or Outpaint\" is powered by the sampler \"DPMPP Fooocus Seamless 2M SDE Karras Inpaint Sampler\" (beta)')
@@ -161,6 +163,7 @@ with shared.gradio_root:
             current_tab = gr.Textbox(value='uov', visible=False)
 
             default_image = None
+            mask_image = None
 
             def update_default_image(x):
                 global default_image
@@ -169,20 +172,36 @@ with shared.gradio_root:
                 else:
                     default_image = x
                 return
+            
+            def update_mask_image(x):
+                global mask_image
+                if isinstance(x, dict):
+                    mask_image = x['image']
+                else:
+                    mask_image = x
+                return
+
 
             def clear_default_image():
                 global default_image
                 default_image = None
                 return
+            
+            def clear_mask_image():
+                global mask_image
+                mask_image = None
+                return
 
             uov_input_image.upload(update_default_image, inputs=uov_input_image, queue=False)
             inpaint_input_image.upload(update_default_image, inputs=inpaint_input_image, queue=False)
+            inpaint_mask_image.upload(update_mask_image, inputs=inpaint_mask_image, queue=False)
 
             uov_input_image.clear(clear_default_image, queue=False)
             inpaint_input_image.clear(clear_default_image, queue=False)
+            inpaint_mask_image.clear(clear_mask_image, queue=False)
 
             uov_tab.select(lambda: ['uov', default_image], outputs=[current_tab, uov_input_image], queue=False, _js=down_js)
-            inpaint_tab.select(lambda: ['inpaint', default_image], outputs=[current_tab, inpaint_input_image], queue=False, _js=down_js)
+            inpaint_tab.select(lambda: ['inpaint', default_image, mask_image], outputs=[current_tab, inpaint_input_image, inpaint_mask_image], queue=False, _js=down_js)
             ip_tab.select(lambda: 'ip', outputs=[current_tab], queue=False, _js=down_js)
 
         with gr.Column(scale=1, visible=modules.path.default_advanced_checkbox) as advanced_column:
@@ -350,7 +369,7 @@ with shared.gradio_root:
         ctrls += [base_model, refiner_model] + lora_ctrls
         ctrls += [input_image_checkbox, current_tab]
         ctrls += [uov_method, uov_input_image]
-        ctrls += [outpaint_selections, inpaint_input_image]
+        ctrls += [outpaint_selections, inpaint_input_image, inpaint_mask_image]
         ctrls += ip_ctrls
 
         generate_button.click(lambda: (gr.update(visible=True, interactive=True), gr.update(visible=True, interactive=True), gr.update(visible=False), []), outputs=[stop_button, skip_button, generate_button, gallery]) \
